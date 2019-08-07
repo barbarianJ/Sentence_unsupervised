@@ -106,6 +106,9 @@ def embedding_postprocessor(input_tensor,
         assert_op = tf.assert_less_equal(seq_length, max_position_embeddings)
         with tf.control_dependencies([assert_op]):
             if use_sent_position_embeddings:
+                if not sent_length:
+                    raise ValueError("'sent_length' must be specified")
+
                 if not max_position_embeddings % num_sents == 0:
                     raise ValueError("'max_position_embeddings' must be multiple of 'num_sents'"
                                      "got max_position_embeddings: %d & num_sents: %d"
