@@ -53,7 +53,7 @@ def embedding_postprocessor(input_tensor,
                             position_embedding_name='position_embeddings',
                             use_sent_position_embeddings=True,
                             num_sents=2,
-                            sent_length=None,
+                            max_sent_length=64,
                             initializer_range=0.02,
                             max_position_embeddings=128,
                             dropout_prob=0.1):
@@ -70,7 +70,7 @@ def embedding_postprocessor(input_tensor,
     :param use_sent_position_embeddings: whether to use position embedding within each sub sentence component,
                                 or use one position embedding for the whole input_tensor
     :param num_sents: number of sub sentence components
-    :param sent_length: int list, [B, S], length of each sent
+    :param max_sent_length: length of sub sentence component, needed when use_sent_position_embeddings is set to True
     :param initializer_range:
     :param max_position_embeddings:
     :param dropout_prob:
@@ -106,27 +106,23 @@ def embedding_postprocessor(input_tensor,
         assert_op = tf.assert_less_equal(seq_length, max_position_embeddings)
         with tf.control_dependencies([assert_op]):
             if use_sent_position_embeddings:
-                if not sent_length:
-                    raise ValueError("'sent_length' must be specified")
 
-                if not max_position_embeddings % num_sents == 0:
-                    raise ValueError("'max_position_embeddings' must be multiple of 'num_sents'"
-                                     "got max_position_embeddings: %d & num_sents: %d"
-                                     % (max_position_embeddings, num_sents))
+                if not seq_length % num_sents == 0:
+                    raise ValueError("'seq_length' must be multiple of 'num_sents'"
+                                     "got seq_length: %d & num_sents: %d"
+                                     % (seq_length, num_sents))
+
+                sent_length = seq_length // num_sents
 
                 full_position_embeddings = tf.get_variable(
                     name=position_embedding_name,
-                    shape=[max_position_embeddings // num_sents, width],
+                    shape=[max_sent_length, width],
                     initializer=create_initializer(initializer_range))
 
                 # slice position_embedding for each sub sent
-                sent_position_embeddings = []
-                for sent_idx in range(num_sents):
-                    sent_position_embeddings.append(
-                        tf.slice(full_position_embeddings, [0, 0],
-                                 [sent_length[sent_idx], width]))
+                position_embeddings = tf.slice(full_position_embeddings, [0, 0], [sent_length, -1])
 
-                position_embeddings = tf.concat(sent_position_embeddings, axis=0)
+                position_embeddings = tf.tile(position_embeddings, [num_sents, 1])
 
             else:
                 full_position_embeddings = tf.get_variable(
