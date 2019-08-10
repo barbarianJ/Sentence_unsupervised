@@ -105,3 +105,73 @@ def dropout(tensor, prob):
 def layer_norm(tensor, name=None):
     return tf.contrib.layers.layer_norm(
         inputs=tensor, begin_norm_axis=-1, begin_params_axis=-1, scope=name)
+
+
+def create_2sent_3d_attention_mask(from_tensor, to_mask):
+    """
+    This function assumes that from_tensor and to_tensor have the same seq_length.
+    :param from_tensor: 2D or 3D Tensor, [B, S, ..]
+    :param to_mask: 3D Tensor, [B, num_sents, to_seq_length]
+    :return:
+        float Tensor of shape [B, from_seq_length, to_seq_length]
+    """
+    mask1 = _create_2sent_3d_attention_mask(from_tensor, to_mask[:, 0, :], 0)
+    mask2 = _create_2sent_3d_attention_mask(from_tensor, to_mask[:, 1, :], 1)
+
+    mask = tf.concat((mask1, mask2), axis=-2)
+
+    return mask
+
+
+def _create_2sent_3d_attention_mask(from_tensor, to_mask, sent_number):
+    """
+
+    :param from_tensor: 2D or 3D Tensor, [B, S, ..]
+    :param to_mask: 2D Tensor, [B, to_seq_length]
+    :param sent_number:
+    :return:
+        float Tensor of shape [B, from_seq_length, to_seq_length]
+    """
+    from_shape = get_shape_list(from_tensor, expected_rank=[2, 3])
+    batch_size, from_seq_length = from_shape[:2]
+
+    to_shape = get_shape_list(to_mask, expected_rank=2)
+    to_seq_length = to_shape[1]
+
+    mask_padding = tf.zeros(to_shape, dtype=tf.float32)
+    to_mask = tf.cast(to_mask, tf.float32)
+
+    if sent_number == 0:
+        to_mask = tf.concat((to_mask, mask_padding), axis=-1)
+    else:
+        to_mask = tf.concat((mask_padding, to_mask), axis=-1)
+
+    to_mask = tf.reshape(to_mask, [batch_size, 1, -1])
+
+    broadcast_ones = tf.ones(
+        shape=[batch_size, to_seq_length, 1], dtype=tf.float32)
+
+    mask = broadcast_ones * to_mask
+
+    return mask
+
+
+def test_mask():
+    inputs = tf.range(16)
+    inputs = tf.reshape(inputs, [2, 8], name='inputs')
+
+    mask = tf.constant(
+        [
+            [[1, 1, 0, 0], [1, 0, 0, 0]],
+            [[1, 0, 1, 0], [0, 0, 1, 0]]
+        ], dtype=tf.float32
+    )
+
+    # tf.reset_default_graph()
+    # with tf.get_default_graph():
+    with tf.Session() as sess:
+
+        res = sess.run([create_2sent_3d_attention_mask(inputs, mask)])
+
+        print(res)
+
