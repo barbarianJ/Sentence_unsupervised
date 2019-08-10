@@ -6,7 +6,7 @@ import json
 import copy
 from utils.transformer import transformer
 from utils.embedding_util import embedding_lookup, embedding_postprocessor
-from utils.misc_utils import get_shape_list
+from utils.misc_utils import get_shape_list, create_2sent_3d_attention_mask
 
 
 class SentConfig(object):
@@ -20,8 +20,10 @@ class SentConfig(object):
                  hidden_dropout_prob=0.1,
                  attention_dropout_prob=0.1,
                  max_position_embeddings=128,
-                 initializer_range=0.02):
-        '''
+                 initializer_range=0.02,
+                 num_sents=2,
+                 max_sent_length=64):
+        """
 
         :param vocab_size:
         :param hidden_size:
@@ -33,7 +35,7 @@ class SentConfig(object):
         :param attention_dropout_prob:
         :param max_position_embeddings:
         :param initializer_range:
-        '''
+        """
 
         self.vocab_size = vocab_size,
         self.hidden_size = hidden_size,
@@ -45,6 +47,8 @@ class SentConfig(object):
         self.attention_dropout_prob = attention_dropout_prob,
         self.max_position_embeddings = max_position_embeddings,
         self.initializer_range = initializer_range
+        self.num_sents = num_sents
+        self.max_sent_length = max_sent_length
 
     @classmethod
     def from_dict(cls, json_object):
@@ -99,20 +103,20 @@ class SentModel(object):
         if token_type_ids is None:
             token_type_ids = tf.zeros(shape=[batch_size, seq_length], dtype=tf.int32)
 
-        with tf.variable_scope(scope, default_name="Sent"):
-            with tf.variable_scope("embeddings"):
+        with tf.variable_scope(scope, default_name='Sent'):
+            with tf.variable_scope('embeddings'):
                 self.embedding_output, self.embedding_table = embedding_lookup(
                     input_ids=input_ids,
                     vocab_size=config.vocab_size,
                     embedding_size=config.hidden_size,
                     initializer_range=config.initializer_range,
-                    word_embedding_name="word_embeddings")
+                    word_embedding_name='word_embeddings')
 
                 self.embedding_output = embedding_postprocessor(
                     input_tensor=self.embedding_output,
                     use_token_type=False,
                     use_position_embeddings=True,
-                    position_embedding_name="position_embeddings",
+                    position_embedding_name='position_embeddings',
                     use_sent_position_embeddings=True,
                     num_sents=config.num_sents,
                     max_sent_length=config.max_sent_length,
@@ -120,5 +124,9 @@ class SentModel(object):
                     max_position_embeddings=config.max_position_embeddings,
                     dropout_prob=config.hidden_dropout_prob)
 
+            # with tf.variable_scope('encoder'):
+            #     attention_mask =
 
+
+# attention mask for different sents
 
