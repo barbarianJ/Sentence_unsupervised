@@ -7,12 +7,12 @@ from .misc_utils import *
 def transformer(input_tensor,
                 attention_mask=None,
                 hidden_size=512,
-                num_layers=8,
+                num_hidden_layers=8,
                 num_attention_heads=8,
                 intermediate_size=2048,
                 intermediate_act_fn=gelu,
                 hidden_dropout_prob=0.1,
-                attention_dropout_prob=0.1,
+                attention_probs_dropout_prob=0.1,
                 initializer_range=0.02,
                 do_return_all_layers=False):
     """
@@ -20,12 +20,12 @@ def transformer(input_tensor,
     :param input_tensor: float, shape: [B, S, E]
     :param attention_mask:
     :param hidden_size:
-    :param num_layers:
+    :param num_hidden_layers:
     :param num_attention_heads:
     :param intermediate_size:
     :param intermediate_act_fn:
     :param hidden_dropout_prob:
-    :param attention_dropout_prob:
+    :param attention_probs_dropout_prob:
     :param initializer_range: stddev of truncated normal
     :param do_return_all_layers:
     :return:
@@ -48,21 +48,21 @@ def transformer(input_tensor,
     prev_output = reshape_to_matrix(input_tensor)
 
     all_layer_outputs = []
-    for layer_idx in range(num_layers):
+    for layer_idx in range(num_hidden_layers):
         with tf.variable_scope('layer_%d' % layer_idx):
             layer_input = prev_output
 
             with tf.variable_scope('attention'):
                 attention_heads = []
 
-                with tf.variable_scope('self'):
+                with tf.variable_scope('self_attention'):
                     attention_head = attention_layer(
                         from_tensor=layer_input,
                         to_tensor=layer_input,
                         attention_mask=attention_mask,
                         num_attention_heads=num_attention_heads,
                         size_per_head=attention_head_size,
-                        attention_probs_dropout_prob=attention_dropout_prob,
+                        attention_probs_dropout_prob=attention_probs_dropout_prob,
                         initializer_range=initializer_range,
                         do_return_2d_tensor=True,
                         batch_size=batch_size,

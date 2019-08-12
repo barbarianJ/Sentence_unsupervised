@@ -3,6 +3,8 @@
 import tensorflow as tf
 import numpy as np
 import six
+import re
+import collections
 
 
 def gelu(x):
@@ -156,6 +158,79 @@ def _create_2sent_3d_attention_mask(from_tensor, to_mask, sent_number):
     return mask
 
 
+def get_activation(activation_string):
+    if not isinstance(activation_string, six.string_types):
+        return activation_string
+
+    if not activation_string:
+        return None
+
+    act = activation_string.lower()
+    if act == "linear":
+        return None
+    elif act == "relu":
+        return tf.nn.relu
+    elif act == "gelu":
+        return gelu
+    elif act == "tanh":
+        return tf.tanh
+    else:
+        raise ValueError("Unsupported activation: %s" % act)
+
+
+def build_rnn(inputs, num_units, num_layers, drop_out, directional, seq_len):
+    if directional == 'uni':
+        cell = create_rnn_cell(num_units, num_layers, drop_out)
+
+        return tf.nn.dynamic_rnn(cell, inputs, dtype=tf.float32, sequence_length=seq_len)
+    elif directional == 'bi':
+        fw = create_rnn_cell(num_units, num_layers, drop_out)
+        bw = create_rnn_cell(num_units, num_layers, drop_out)
+
+        bi_outputs, bi_state = tf.nn.bidirectional_dynamic_rnn(fw, bw, inputs, dtype=tf.float32)
+
+        return tf.concat(bi_outputs, -1), bi_state
+
+
+def create_rnn_cell(num_units, num_layers, drop_out=0.0):
+    cell_list = []
+    for _ in range(num_layers):
+        cell = tf.contrib.rnn.BasicLSTMCell(num_units)
+        if drop_out > 0:
+            cell = tf.contrib.rnn.DropoutWrapper(cell=cell, input_keep_prob=(1.0 - drop_out))
+        cell_list.append(cell)
+
+    if len(cell_list) == 1:
+        return cell_list[0]
+    return tf.contrib.rnn.MultiRNNCell(cell_list)
+
+
+def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
+    """Compute the union of the current variables and checkpoint variables."""
+    initialized_variable_names = {}
+
+    name_to_variable = collections.OrderedDict()
+    for var in tvars:
+        name = var.name
+        m = re.match("^(.*):\\d+$", name)
+        if m is not None:
+            name = m.group(1)
+        name_to_variable[name] = var
+
+    init_vars = tf.train.list_variables(init_checkpoint)
+
+    assignment_map = collections.OrderedDict()
+    for x in init_vars:
+        (name, var) = (x[0], x[1])
+        if name not in name_to_variable:
+            continue
+        assignment_map[name] = name
+        initialized_variable_names[name] = 1
+        initialized_variable_names[name + ":0"] = 1
+
+    return assignment_map, initialized_variable_names
+
+
 def test_mask():
     inputs = tf.range(16)
     inputs = tf.reshape(inputs, [2, 8], name='inputs')
@@ -170,8 +245,6 @@ def test_mask():
     # tf.reset_default_graph()
     # with tf.get_default_graph():
     with tf.Session() as sess:
-
         res = sess.run([create_2sent_3d_attention_mask(inputs, mask)])
 
         print(res)
-

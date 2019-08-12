@@ -1,6 +1,7 @@
 # encoding=utf-8
 
-from .misc_utils import *
+import tensorflow as tf
+from misc_utils import create_initializer, get_shape_list, layer_norm, dropout
 
 
 def embedding_lookup(input_ids,
@@ -59,7 +60,7 @@ def embedding_postprocessor(input_tensor,
                             dropout_prob=0.1):
     """
 
-    :param input_tensor: consists of one or many sub sentence component, separated by [SEP], shape [B, S, E]
+    :param input_tensor: consists of one or many sub sentence component, shape [B, S, E]
     :param use_token_type: if more than one sub sentence component, each sub sent has different token_type_id
     :param token_type_ids: segment ids, corresponding to different sub sentence component
                             shape [B, S]
@@ -136,7 +137,7 @@ def embedding_postprocessor(input_tensor,
             num_dims = len(output.shape.as_list())
 
             position_broadcast_shape = []
-            for _ in range(num_dims):
+            for _ in range(num_dims - 2):
                 position_broadcast_shape.append(1)
 
             position_broadcast_shape.extend([seq_length, width])
@@ -147,3 +148,34 @@ def embedding_postprocessor(input_tensor,
         output = dropout(output, dropout_prob)
 
         return output
+
+
+def test_posotion_embedding():
+    inputs = tf.constant(
+        [
+            [[1, 0], [1, 1], [0, 0], [0, 1]],
+            [[0, 2], [2, 0], [3, 1], [3, 4]]
+        ], dtype=tf.float32
+    )
+
+    embd = embedding_postprocessor(inputs,
+                                   use_token_type=False,
+                                   token_type_ids=None,
+                                   token_type_vocab_size=2,
+                                   token_type_embedding_name='token_type_embeddings',
+                                   use_position_embeddings=True,
+                                   position_embedding_name='position_embeddings',
+                                   use_sent_position_embeddings=True,
+                                   num_sents=2,
+                                   max_sent_length=64,
+                                   initializer_range=0.02,
+                                   max_position_embeddings=128,
+                                   dropout_prob=0.1)
+
+    with tf.Session() as sess:
+
+        sess.run(tf.global_variables_initializer())
+
+        res = sess.run(embd)
+        print(res)
+
