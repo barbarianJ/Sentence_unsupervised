@@ -7,7 +7,7 @@ from tqdm import tqdm
 from hp import *
 import tensorflow as tf
 from utils import jieba_tokenization as tokenization, optimization
-from gdu import gdu
+# from gdu import gdu
 from random import shuffle, sample
 from utils.misc_utils import get_assignment_map_from_checkpoint
 
@@ -25,7 +25,7 @@ false_file = 'data/handwritten_qingyun/han_qing_false.txt'
 infer_file = 'data/crawled/crawled.txt'
 infer_output_dir = 'infer/'
 
-init_checkpoint = None
+init_checkpoint = 'result/ckpt-23351'
 
 batch_size = 64
 sent_length = max_seq_length // 2
@@ -328,7 +328,7 @@ def main():
                         if sent1_idx == sent2_idx or infer_data[sent1_idx] == infer_data[sent2_idx]:
                             continue
 
-                        if len(infer_data[sent2_idx] < 3) or len(infer_data[sent2_idx]) > 20:
+                        if len(infer_data[sent2_idx]) < 3 or len(infer_data[sent2_idx]) > 20:
                             continue
 
                         if len(infer_data[sent2_idx]) > 5 * len(infer_data[sent1_idx]):
