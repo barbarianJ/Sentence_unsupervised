@@ -15,8 +15,8 @@ from utils.misc_utils import get_assignment_map_from_checkpoint
 model_config_file = 'model/model_config/config.json'
 max_seq_length = 100
 output_dir = 'result/'
-train = True
-infer = False
+train = False
+infer = True
 vocab_file = 'model/model_config/vocab.txt'
 do_lower_case = False
 true_file = 'data/handwritten_qingyun/han_qing_true.txt'
