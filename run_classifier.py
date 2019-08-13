@@ -111,7 +111,7 @@ class DataProcessor(object):
         ids = []
         masks = []
         sents_length = []
-        labels = [0]
+        labels = [[0]]
 
         ids_a = self._text_to_ids(sent1)
         ids_b = self._text_to_ids(sent2)
