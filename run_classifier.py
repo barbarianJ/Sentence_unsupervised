@@ -15,8 +15,8 @@ from utils.misc_utils import get_assignment_map_from_checkpoint
 model_config_file = 'model/model_config/config.json'
 max_seq_length = 100
 output_dir = 'result/'
-train = False
-infer = True
+train = True
+infer = False
 vocab_file = 'model/model_config/vocab.txt'
 do_lower_case = False
 true_file = 'data/handwritten_qingyun/han_qing_true.txt'
@@ -26,6 +26,7 @@ infer_file = 'data/crawled/crawled.txt'
 infer_output_dir = 'infer/'
 
 init_checkpoint = 'result/ckpt-23351'
+init_checkpoint = None
 
 batch_size = 64
 sent_length = max_seq_length // 2
@@ -61,7 +62,7 @@ def create_model(model_config, is_training, input_ids, sents_length, input_mask,
 
         loss = tf.losses.mean_squared_error(predict, labels)
 
-    return loss, model_output
+    return loss, predict
 
 
 class DataProcessor(object):
@@ -200,6 +201,7 @@ def main():
             (max_seq_length, model_config.max_position_embeddings))
 
     tf.gfile.MakeDirs(output_dir)
+    tf.gfile.MakeDirs(infer_output_dir)
 
     tokenizer = tokenization.FullTokenizer(
         vocab_file=vocab_file, do_lower_case=do_lower_case)
@@ -209,6 +211,7 @@ def main():
                               infer_file=infer_file)
 
     if train:
+        processor.prepare_train_data()
         num_data = processor.get_num_train_data()
         num_train_steps = num_data // batch_size
 
