@@ -17,6 +17,8 @@ max_seq_length = 100
 output_dir = 'result/'
 train = True
 infer = False
+train = False
+infer = True
 vocab_file = 'model/model_config/vocab.txt'
 do_lower_case = False
 true_file = 'data/handwritten_qingyun/han_qing_true.txt'
@@ -162,7 +164,7 @@ class DataProcessor(object):
         for d in data:
             text_a, text_b, label = d.split(' && ')
 
-            label = int(label) * 100
+            label = int(label) * 20
 
             ids_a = self._text_to_ids(text_a)
             ids_b = self._text_to_ids(text_b)
@@ -251,8 +253,8 @@ def main():
                     print("  name = %s, shape = %s%s", var.name, var.shape,
                           init_string)
 
-                model_result = tf.identity(predict, name='infer_value')
-                saver = tf.train.Saver(tf.trainable_variables() + [global_step, model_result], max_to_keep=3)
+                # model_result = tf.identity(predict, name='infer_value')
+                saver = tf.train.Saver(tf.trainable_variables() + [global_step], max_to_keep=3)
                 tf.summary.scalar('loss', loss)
                 summary_op = tf.summary.merge_all()
                 summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'), global_graph)
