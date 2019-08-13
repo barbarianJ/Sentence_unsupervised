@@ -168,7 +168,7 @@ class SentModel(object):
                     min_length = tf.reduce_min(sents_length, axis=-1)
 
                     # [B, S, E]
-                    self.rnn_output, state = build_rnn(
+                    self.rnn_output, self.rnn_state = build_rnn(
                         self.dot_product,
                         config.hidden_size,
                         config.num_rnn_layers,
@@ -176,9 +176,14 @@ class SentModel(object):
                         config.rnn_dir,
                         min_length)
 
+                    # pick the last relevant output of RNN
+                    batch_range = tf.range(tf.shape(self.rnn_output)[0])
+                    indices = tf.stack([batch_range, min_length - 1], axis=1)
+                    self.final_output = tf.gather_nd(self.rnn_output, indices)
+
     def get_output(self):
         # [B, E]
-        return self.rnn_output[:, -1, :]
+        return self.final_output
 
     def get_sequence_output(self):
         return self.sequence_output

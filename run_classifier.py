@@ -26,7 +26,6 @@ infer_file = 'data/crawled/crawled.txt'
 infer_output_dir = 'infer/'
 
 init_checkpoint = 'result/ckpt-23351'
-init_checkpoint = None
 
 batch_size = 64
 sent_length = max_seq_length // 2
