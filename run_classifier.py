@@ -26,6 +26,7 @@ infer_file = 'data/crawled/crawled.txt'
 infer_output_dir = 'infer/'
 
 init_checkpoint = 'result/ckpt-23351'
+init_checkpoint = None
 
 batch_size = 64
 sent_length = max_seq_length // 2
@@ -51,7 +52,6 @@ def create_model(model_config, is_training, input_ids, sents_length, input_mask,
     )
 
     model_output = model.get_output()
-    print('model_output shape: ' + str(model_output.shape))
 
     with tf.variable_scope('loss'):
         predict = tf.layers.dense(model_output, 1,
@@ -162,7 +162,7 @@ class DataProcessor(object):
         for d in data:
             text_a, text_b, label = d.split(' && ')
 
-            label = int(label)
+            label = int(label) * 100
 
             ids_a = self._text_to_ids(text_a)
             ids_b = self._text_to_ids(text_b)
@@ -251,7 +251,8 @@ def main():
                     print("  name = %s, shape = %s%s", var.name, var.shape,
                           init_string)
 
-                saver = tf.train.Saver(tf.trainable_variables() + [global_step], max_to_keep=5)
+                model_result = tf.identity(predict, name='infer_value')
+                saver = tf.train.Saver(tf.trainable_variables() + [global_step, model_result], max_to_keep=3)
                 tf.summary.scalar('loss', loss)
                 summary_op = tf.summary.merge_all()
                 summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'), global_graph)
@@ -269,7 +270,7 @@ def main():
                                      label_id: labels
                                  })
 
-                        if step % 100 == 0:
+                        if step % 99 == 0:
                             summary = sess.run(summary_op,
                                                feed_dict={
                                                    input_ids: ids,
@@ -279,8 +280,8 @@ def main():
                                                })
                             summary_writter.add_summary(summary, global_step.eval(session=sess))
 
-                            if step % 1000 == 0:
-                                saver.save(sess, output_dir + '/ckpt', global_step=global_step)
+                        if step % 999 == 0:
+                            saver.save(sess, output_dir + '/ckpt', global_step=global_step)
 
     elif infer:
 
@@ -321,6 +322,7 @@ def main():
                 length = len(infer_data)
                 match_found = False
 
+                tf.train.write_graph(sess.graph_def, 'result/', 'model_graph.pbtxt')
                 for sent1_idx in tqdm(range(infer_start_index, length)):
                     for sent2_idx in tqdm(sample(range(length), min(length, num_sent_to_compare))):
                         if match_found:
@@ -348,6 +350,7 @@ def main():
 
                                         })
 
+                        pred = pred[0][0]
                         if infer_lower_bound < pred < infer_upper_bound:
                             output_file = os.path.join(infer_output_dir, 'predictions.tsv')
                             with tf.gfile.GFile(output_file, "a") as writer:
