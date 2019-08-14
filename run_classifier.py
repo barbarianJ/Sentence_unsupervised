@@ -164,7 +164,7 @@ class DataProcessor(object):
         for d in data:
             text_a, text_b, label = d.split(' && ')
 
-            label = int(label) * 20
+            label = int(label)
 
             ids_a = self._text_to_ids(text_a)
             ids_b = self._text_to_ids(text_b)
@@ -214,7 +214,7 @@ def main():
     if train:
         processor.prepare_train_data()
         num_data = processor.get_num_train_data()
-        num_train_steps = num_data // batch_size
+        num_train_steps = num_epoch * num_data // batch_size
 
         with tf.Graph().as_default() as global_graph:
             input_ids = tf.placeholder(shape=(batch_size, max_seq_length), dtype=tf.int32, name='input_ids')
@@ -254,36 +254,36 @@ def main():
                           init_string)
 
                 # model_result = tf.identity(predict, name='infer_value')
-                saver = tf.train.Saver(tf.trainable_variables() + [global_step], max_to_keep=3)
+                saver = tf.train.Saver(tf.trainable_variables() + [global_step])
                 tf.summary.scalar('loss', loss)
                 summary_op = tf.summary.merge_all()
                 summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'), global_graph)
 
-                for e in range(num_epoch):
-                    tq = tqdm(range(num_train_steps))
-                    for step in tq:
-                        ids, masks, sents_length, labels = processor.get_train_data(batch_size)
+                # for e in range(num_epoch):
+                tq = tqdm(range(1, num_train_steps + 1))
+                for step in tq:
+                    ids, masks, sents_length, labels = processor.get_train_data(batch_size)
 
-                        sess.run(train_op,
-                                 feed_dict={
-                                     input_ids: ids,
-                                     input_mask: masks,
-                                     input_sents_length: sents_length,
-                                     label_id: labels
-                                 })
+                    sess.run(train_op,
+                             feed_dict={
+                                 input_ids: ids,
+                                 input_mask: masks,
+                                 input_sents_length: sents_length,
+                                 label_id: labels
+                             })
 
-                        if step % 99 == 0:
-                            summary = sess.run(summary_op,
-                                               feed_dict={
-                                                   input_ids: ids,
-                                                   input_mask: masks,
-                                                   input_sents_length: sents_length,
-                                                   label_id: labels
-                                               })
-                            summary_writter.add_summary(summary, global_step.eval(session=sess))
+                    if step % 100 == 0:
+                        summary = sess.run(summary_op,
+                                           feed_dict={
+                                               input_ids: ids,
+                                               input_mask: masks,
+                                               input_sents_length: sents_length,
+                                               label_id: labels
+                                           })
+                        summary_writter.add_summary(summary, global_step.eval(session=sess))
 
-                        if step % 999 == 0:
-                            saver.save(sess, output_dir + '/ckpt', global_step=global_step)
+                    if step % 1000 == 0:
+                        saver.save(sess, output_dir + '/ckpt', global_step=global_step)
 
     elif infer:
 

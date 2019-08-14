@@ -159,31 +159,41 @@ class SentModel(object):
                 self.sent1_output, self.sent2_output = tf.split(
                     self.sequence_output, num_or_size_splits=2, axis=1)
 
-                with tf.variable_scope('dot_product'):
-                    self.dot_product = self.sent1_output * self.sent2_output
+                self.lstm_layer = tf.keras.layers.CuDNNLSTM(config.hidden_size)
 
-                with tf.variable_scope('rnn_output'):
+                self.sent1_lstm_output = self.lstm_layer(self.sent1_output)
+                self.sent2_lstm_output = self.lstm_layer(self.sent2_output)
 
-                    # after dot product, dynamic rnn only needs to process min_length of seq
-                    min_length = tf.reduce_min(sents_length, axis=-1)
+                self.multiply = self.sent1_lstm_output * self.sent2_lstm_output
 
-                    # [B, S, E]
-                    self.rnn_output, self.rnn_state = build_rnn(
-                        self.dot_product,
-                        config.hidden_size,
-                        config.num_rnn_layers,
-                        config.hidden_dropout_prob,
-                        config.rnn_dir,
-                        min_length)
-
-                    # pick the last relevant output of RNN
-                    batch_range = tf.range(tf.shape(self.rnn_output)[0])
-                    indices = tf.stack([batch_range, min_length - 1], axis=1)
-                    self.final_output = tf.gather_nd(self.rnn_output, indices)
+                '''
+                outputs of rnn are approximately 0.
+                '''
+                # with tf.variable_scope('dot_product'):
+                #     self.dot_product = self.sent1_output * self.sent2_output
+                #
+                # with tf.variable_scope('rnn_output'):
+                #
+                #     # after dot product, dynamic rnn only needs to process min_length of seq
+                #     min_length = tf.reduce_min(sents_length, axis=-1)
+                #
+                #     # [B, S, E]
+                #     self.rnn_output, self.rnn_state = build_rnn(
+                #         self.dot_product,
+                #         config.hidden_size,
+                #         config.num_rnn_layers,
+                #         config.hidden_dropout_prob,
+                #         config.rnn_dir,
+                #         min_length)
+                #
+                #     # pick the last relevant output of RNN
+                #     batch_range = tf.range(tf.shape(self.rnn_output)[0])
+                #     indices = tf.stack([batch_range, min_length - 1], axis=1)
+                #     self.final_output = tf.gather_nd(self.rnn_output, indices)
 
     def get_output(self):
         # [B, E]
-        return self.final_output
+        return self.multiply
 
     def get_sequence_output(self):
         return self.sequence_output
