@@ -12,35 +12,101 @@ from random import shuffle, sample
 from utils.misc_utils import get_assignment_map_from_checkpoint
 
 
-model_config_file = 'model/model_config/config.json'
-max_seq_length = 100
-output_dir = 'result/'
-train = True
-infer = False
-train = False
-infer = True
-vocab_file = 'model/model_config/vocab.txt'
-do_lower_case = False
-true_file = 'data/handwritten_qingyun/han_qing_true.txt'
-false_file = 'data/handwritten_qingyun/han_qing_false.txt'
+class Classifier(object):
 
-infer_file = 'data/crawled/crawled.txt'
-infer_output_dir = 'infer/'
+    def __init__(self, model_config, num_labels, batch_size, num_train_steps, is_training):
+        self.input_ids = tf.placeholder(shape=(batch_size, max_seq_length), dtype=tf.int32, name='input_ids')
+        self.input_mask = tf.placeholder(shape=(batch_size, 2, sent_length), dtype=tf.int32, name='input_mask')
+        self.input_sents_length = tf.placeholder(shape=(batch_size, 2), dtype=tf.int32, name='segment_ids')
 
-init_checkpoint = 'result/ckpt-23351'
-init_checkpoint = None
+        model = SentModel(
+            config=model_config,
+            is_training=is_training,
+            input_ids=self.input_ids,
+            input_mask=self.input_mask,
+            sents_length=self.input_sents_length
+        )
 
-batch_size = 64
-sent_length = max_seq_length // 2
-num_epoch = 10000
-learning_rate = 0.00005
-num_warmup_proportion = 0.1
+        model_output = model.get_output()
+        hidden_size = model_output.shape[-1].value
 
-infer_start_index = 0
-num_sent_to_compare = 100000
+        with tf.variable_scope("cls/seq_relationship"):
+            output_weights = tf.get_variable(
+                "output_weights", [num_labels, hidden_size],
+                initializer=tf.truncated_normal_initializer(stddev=0.02))
 
-infer_lower_bound = -0.05
-infer_upper_bound = 0.05
+            output_bias = tf.get_variable(
+                "output_bias", [num_labels], initializer=tf.zeros_initializer())
+
+        with tf.variable_scope("loss"):
+            if is_training:
+                # I.e., 0.1 dropout
+                model_output = tf.nn.dropout(model_output, keep_prob=0.9)
+
+            logits = tf.matmul(model_output, output_weights, transpose_b=True)
+            logits = tf.nn.bias_add(logits, output_bias)
+            self.probabilities = tf.nn.softmax(logits, axis=-1)
+
+            if is_training:
+                self.label_id = tf.placeholder(shape=(batch_size, 1), dtype=tf.int32, name='label_id')
+
+                log_probs = tf.nn.log_softmax(logits, axis=-1)
+
+                one_hot_labels = tf.one_hot(self.label_id, depth=num_labels, dtype=tf.float32)
+
+                per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
+                self.loss = tf.reduce_mean(per_example_loss)
+
+                num_warmup_steps = int(num_warmup_proportion * num_train_steps)
+                self.train_op, self.global_step = optimization.create_optimizer(self.loss,
+                                                                                learning_rate, num_train_steps,
+                                                                                num_warmup_steps, use_tpu=False)
+
+                # saver
+                self.saver = tf.train.Saver(tf.trainable_variables() + [self.global_step])
+                tf.summary.scalar('loss', self.loss)
+                self.summary_op = tf.summary.merge_all()
+                self.summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'),
+                                                             tf.get_default_graph())
+
+    def train(self, sess, feed_values, summary=False, saver=False):
+        sess.run(self.train_op, feed_dict=self.make_feed_dict(*feed_values))
+
+        if summary:
+            summary = sess.run(self.summary_op,
+                               feed_dict=self.make_feed_dict(*feed_values))
+            self.summary_writter.add_summary(summary, self.global_step.eval(session=sess))
+
+        if saver:
+            self.saver.save(sess, output_dir + '/ckpt', global_step=self.global_step)
+
+    def infer(self, sess):
+        pass
+
+    def restore_ckpt_global_step(self, init_checkpoint=None):
+        tf.global_variables_initializer().run()
+
+        tvars = tf.trainable_variables() + [self.global_step]
+        initialized_variable_names = {}
+
+        if init_checkpoint:
+            assignment_map, initialized_variable_names = \
+                get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+
+        print("**** Trainable Variables ****")
+        for var in tvars:
+            init_string = ""
+            if var.name in initialized_variable_names:
+                init_string = ", *INIT_FROM_CKPT*"
+            print("  name = %s, shape = %s%s", var.name, var.shape,
+                  init_string)
+
+    def make_feed_dict(self, ids, masks, sents_length, labels):
+        return {
+            self.input_ids: ids,
+            self.input_mask: masks,
+            self.input_sents_length: sents_length,
+            self.label_id: labels}
 
 
 def create_model(model_config, is_training, input_ids, sents_length, input_mask,
@@ -217,73 +283,78 @@ def main():
         num_train_steps = num_epoch * num_data // batch_size
 
         with tf.Graph().as_default() as global_graph:
-            input_ids = tf.placeholder(shape=(batch_size, max_seq_length), dtype=tf.int32, name='input_ids')
-            input_mask = tf.placeholder(shape=(batch_size, 2, sent_length), dtype=tf.int32, name='input_mask')
-            input_sents_length = tf.placeholder(shape=(batch_size, 2), dtype=tf.int32, name='segment_ids')
-            label_id = tf.placeholder(shape=(batch_size, 1), dtype=tf.int32, name='label_id')
+            # input_ids = tf.placeholder(shape=(batch_size, max_seq_length), dtype=tf.int32, name='input_ids')
+            # input_mask = tf.placeholder(shape=(batch_size, 2, sent_length), dtype=tf.int32, name='input_mask')
+            # input_sents_length = tf.placeholder(shape=(batch_size, 2), dtype=tf.int32, name='segment_ids')
+            # label_id = tf.placeholder(shape=(batch_size, 1), dtype=tf.int32, name='label_id')
+            #
+            # loss, predict = create_model(
+            #     model_config=model_config,
+            #     is_training=True,
+            #     input_ids=input_ids,
+            #     sents_length=input_sents_length,
+            #     input_mask=input_mask,
+            #     labels=label_id)
+            #
+            # num_warmup_steps = int(num_warmup_proportion * num_train_steps)
+            # train_op, global_step = optimization.create_optimizer(loss, learning_rate, num_train_steps,
+            #                                                       num_warmup_steps, use_tpu=False)
 
-            loss, predict = create_model(
-                model_config=model_config,
-                is_training=True,
-                input_ids=input_ids,
-                sents_length=input_sents_length,
-                input_mask=input_mask,
-                labels=label_id)
-
-            num_warmup_steps = int(num_warmup_proportion * num_train_steps)
-            train_op, global_step = optimization.create_optimizer(loss, learning_rate, num_train_steps,
-                                                                  num_warmup_steps, use_tpu=False)
+            model = Classifier(model_config, num_labels=2, batch_size=batch_size,
+                               num_train_steps=num_train_steps, is_training=True)
 
             config = tf.ConfigProto(allow_soft_placement=True, gpu_options=tf.GPUOptions(allow_growth=True))
             with tf.Session(graph=global_graph, config=config) as sess:
-                tf.global_variables_initializer().run()
-
-                tvars = tf.trainable_variables() + [global_step]
-                initialized_variable_names = {}
-
-                if init_checkpoint:
-                    assignment_map, initialized_variable_names = \
-                        get_assignment_map_from_checkpoint(tvars, init_checkpoint)
-
-                print("**** Trainable Variables ****")
-                for var in tvars:
-                    init_string = ""
-                    if var.name in initialized_variable_names:
-                        init_string = ", *INIT_FROM_CKPT*"
-                    print("  name = %s, shape = %s%s", var.name, var.shape,
-                          init_string)
+                model.restore_ckpt_global_step(init_checkpoint=init_checkpoint)
+                # tf.global_variables_initializer().run()
+                #
+                # tvars = tf.trainable_variables() + [global_step]
+                # initialized_variable_names = {}
+                #
+                # if init_checkpoint:
+                #     assignment_map, initialized_variable_names = \
+                #         get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+                #
+                # print("**** Trainable Variables ****")
+                # for var in tvars:
+                #     init_string = ""
+                #     if var.name in initialized_variable_names:
+                #         init_string = ", *INIT_FROM_CKPT*"
+                #     print("  name = %s, shape = %s%s", var.name, var.shape,
+                #           init_string)
 
                 # model_result = tf.identity(predict, name='infer_value')
-                saver = tf.train.Saver(tf.trainable_variables() + [global_step])
-                tf.summary.scalar('loss', loss)
-                summary_op = tf.summary.merge_all()
-                summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'), global_graph)
+                # saver = tf.train.Saver(tf.trainable_variables() + [model.global_step])
+                # tf.summary.scalar('loss', model.loss)
+                # summary_op = tf.summary.merge_all()
+                # summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'), global_graph)
 
                 # for e in range(num_epoch):
                 tq = tqdm(range(1, num_train_steps + 1))
                 for step in tq:
                     ids, masks, sents_length, labels = processor.get_train_data(batch_size)
 
-                    sess.run(train_op,
-                             feed_dict={
-                                 input_ids: ids,
-                                 input_mask: masks,
-                                 input_sents_length: sents_length,
-                                 label_id: labels
-                             })
+                    # sess.run(train_op,
+                    #          feed_dict={
+                    #              input_ids: ids,
+                    #              input_mask: masks,
+                    #              input_sents_length: sents_length,
+                    #              label_id: labels
+                    #          })
+                    model.train(sess, (ids, masks, sents_length, labels), summary=not step % 100, saver=not step % 1000)
 
-                    if step % 100 == 0:
-                        summary = sess.run(summary_op,
-                                           feed_dict={
-                                               input_ids: ids,
-                                               input_mask: masks,
-                                               input_sents_length: sents_length,
-                                               label_id: labels
-                                           })
-                        summary_writter.add_summary(summary, global_step.eval(session=sess))
-
-                    if step % 1000 == 0:
-                        saver.save(sess, output_dir + '/ckpt', global_step=global_step)
+                    # if step % 100 == 0:
+                    #     summary = sess.run(summary_op,
+                    #                        feed_dict={
+                    #                            input_ids: ids,
+                    #                            input_mask: masks,
+                    #                            input_sents_length: sents_length,
+                    #                            label_id: labels
+                    #                        })
+                    #     summary_writter.add_summary(summary, global_step.eval(session=sess))
+                    #
+                    # if step % 1000 == 0:
+                    #     saver.save(sess, output_dir + '/ckpt', global_step=global_step)
 
     elif infer:
 

@@ -154,21 +154,22 @@ class SentModel(object):
             # self.sequence_output: [B, S, E]
             self.sequence_output = self.all_encoder_layers[-1]
 
-            with tf.variable_scope('RNN'):
-                # [B, S/2, E]
-                self.sent1_output, self.sent2_output = tf.split(
-                    self.sequence_output, num_or_size_splits=2, axis=1)
+            # with tf.variable_scope('RNN'):
+            #     # [B, S/2, E]
+            #     self.sent1_output, self.sent2_output = tf.split(
+            #         self.sequence_output, num_or_size_splits=2, axis=1)
+            #
+            #     self.lstm_layer = tf.keras.layers.CuDNNLSTM(config.hidden_size)
+            #
+            #     self.sent1_lstm_output = self.lstm_layer(self.sent1_output)
+            #     self.sent2_lstm_output = self.lstm_layer(self.sent2_output)
+            #
+            #     self.multiply = self.sent1_lstm_output * self.sent2_lstm_output
+            #
+            #     '''
+            #     outputs of rnn are approximately 0.
+            #     '''
 
-                self.lstm_layer = tf.keras.layers.CuDNNLSTM(config.hidden_size)
-
-                self.sent1_lstm_output = self.lstm_layer(self.sent1_output)
-                self.sent2_lstm_output = self.lstm_layer(self.sent2_output)
-
-                self.multiply = self.sent1_lstm_output * self.sent2_lstm_output
-
-                '''
-                outputs of rnn are approximately 0.
-                '''
                 # with tf.variable_scope('dot_product'):
                 #     self.dot_product = self.sent1_output * self.sent2_output
                 #
@@ -193,7 +194,7 @@ class SentModel(object):
 
     def get_output(self):
         # [B, E]
-        return self.multiply
+        return self.sequence_output
 
     def get_sequence_output(self):
         return self.sequence_output
