@@ -6,7 +6,8 @@ import json
 import copy
 from utils.transformer import transformer
 from utils.embedding_util import embedding_lookup, embedding_postprocessor
-from utils.misc_utils import get_shape_list, create_2sent_3d_attention_mask, get_activation, build_rnn
+from utils.misc_utils import get_shape_list, create_2sent_3d_attention_mask, get_activation, \
+    create_attention_mask_from_input_mask, create_initializer
 
 
 class SentConfig(object):
@@ -94,7 +95,7 @@ class SentModel(object):
                  config,
                  is_training,
                  input_ids,
-                 sents_length,
+                 sents_length=None,
                  input_mask=None,
                  token_type_ids=None,
                  scope=None,):
@@ -136,7 +137,7 @@ class SentModel(object):
                     dropout_prob=config.hidden_dropout_prob)
 
             with tf.variable_scope('encoder'):
-                attention_mask = create_2sent_3d_attention_mask(self.embedding_output, input_mask)
+                attention_mask = create_attention_mask_from_input_mask(self.embedding_output, input_mask)
 
                 self.all_encoder_layers = transformer(
                     input_tensor=self.embedding_output,
@@ -153,6 +154,16 @@ class SentModel(object):
 
             # self.sequence_output: [B, S, E]
             self.sequence_output = self.all_encoder_layers[-1]
+
+            with tf.variable_scope("pooler"):
+                # We "pool" the model by simply taking the hidden state corresponding
+                # to the first token. We assume that this has been pre-trained
+                first_token_tensor = tf.squeeze(self.sequence_output[:, 0:1, :], axis=1)
+                self.pooled_output = tf.layers.dense(
+                    first_token_tensor,
+                    config.hidden_size,
+                    activation=tf.tanh,
+                    kernel_initializer=create_initializer(config.initializer_range))
 
             # with tf.variable_scope('RNN'):
             #     # [B, S/2, E]
@@ -194,7 +205,7 @@ class SentModel(object):
 
     def get_output(self):
         # [B, E]
-        return self.sequence_output
+        return self.pooled_output
 
     def get_sequence_output(self):
         return self.sequence_output
