@@ -293,11 +293,11 @@ class DataProcessor(object):
             token1 = token1[:max_seq_length - 2]
 
         # format input data
-        tokens = ['CLS'] + [token1] + ['SEP']
+        tokens = ['[CLS]'] + [token1] + ['[SEP]']
         segment_ids = [0] * len(tokens)
 
         if token2:
-            tokens += token2 + ['SEP']
+            tokens += token2 + ['[SEP]']
             segment_ids += [1] * (len(token2) + 1)
 
         input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
@@ -419,7 +419,7 @@ def main():
                 # for e in range(num_epoch):
                 tq = tqdm(range(1, num_train_steps + 1))
                 for step in tq:
-                    ids, masks, sents_length, labels = processor.get_train_data(batch_size)
+                    ids, masks, sents_length, labels = processor.get_train_data_v2(batch_size)
 
                     # sess.run(train_op,
                     #          feed_dict={
@@ -502,7 +502,7 @@ def main():
                             continue
 
                         ids, masks, sents_length, labels = \
-                            processor.create_infer_data(infer_data[sent1_idx], infer_data[sent2_idx])
+                            processor.create_infer_data_v2(infer_data[sent1_idx], infer_data[sent2_idx])
 
                         # pred = sess.run(predict,
                         #                 feed_dict={
