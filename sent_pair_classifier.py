@@ -293,7 +293,7 @@ class DataProcessor(object):
             token1 = token1[:max_seq_length - 2]
 
         # format input data
-        tokens = ['[CLS]'] + [token1] + ['[SEP]']
+        tokens = ['[CLS]'] + token1 + ['[SEP]']
         segment_ids = [0] * len(tokens)
 
         if token2:

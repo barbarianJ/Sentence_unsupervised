@@ -124,12 +124,12 @@ class SentModel(object):
 
                 self.embedding_output = embedding_postprocessor(
                     input_tensor=self.embedding_output,
-                    use_token_type=False,
+                    use_token_type=True,
                     token_type_ids=token_type_ids,
                     token_type_vocab_size=config.type_vocab_size,
                     use_position_embeddings=True,
                     position_embedding_name='position_embeddings',
-                    use_sent_position_embeddings=True,
+                    use_sent_position_embeddings=False,
                     num_sents=config.num_sents,
                     max_sent_length=config.max_sent_length,
                     initializer_range=config.initializer_range,
