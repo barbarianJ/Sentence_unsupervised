@@ -94,7 +94,6 @@ def embedding_postprocessor(input_tensor,
 
         flat_token_type_ids = tf.reshape(token_type_ids, [-1])
 
-        print('use tf.gather instead of one hot')
         # one_hot_ids = tf.one_hot(flat_token_type_ids, depth=token_type_vocab_size)
         # token_type_embeddings = tf.matmul(one_hot_ids, token_type_table)
 

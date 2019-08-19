@@ -88,6 +88,10 @@ class Classifier(object):
     def infer(self, sess, feed_values):
         return sess.run(self.probabilities, feed_dict=self.make_feed_dict(*feed_values))
 
+    def restore_model(self, sess):
+        latest_ckpt = tf.train.latest_checkpoint(output_dir)
+        self.saver.restore(sess, latest_ckpt)
+
     def restore_ckpt_global_step(self, init_checkpoint=None, include_global_step=True):
         tf.global_variables_initializer().run()
 
@@ -357,7 +361,8 @@ def main():
 
             config = tf.ConfigProto(allow_soft_placement=True, gpu_options=tf.GPUOptions(allow_growth=True))
             with tf.Session(graph=global_graph, config=config) as sess:
-                model.restore_ckpt_global_step(init_checkpoint=init_checkpoint, include_global_step=True)
+                # model.restore_ckpt_global_step(init_checkpoint=init_checkpoint, include_global_step=True)
+                model.restore_model(sess)
 
                 tq = tqdm(range(1, num_train_steps + 1))
                 for step in tq:
@@ -373,7 +378,8 @@ def main():
 
             config = tf.ConfigProto(allow_soft_placement=True, gpu_options=tf.GPUOptions(allow_growth=True))
             with tf.Session(graph=global_graph, config=config) as sess:
-                model.restore_ckpt_global_step(init_checkpoint=init_checkpoint,include_global_step=False)
+                # model.restore_ckpt_global_step(init_checkpoint=init_checkpoint,include_global_step=False)
+                model.restore_model(sess)
 
                 infer_data = processor.prepare_infer_data()
                 length = len(infer_data)
