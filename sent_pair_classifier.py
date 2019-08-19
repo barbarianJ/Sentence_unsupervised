@@ -12,9 +12,6 @@ from random import shuffle, sample
 from utils.misc_utils import get_assignment_map_from_checkpoint
 
 
-batch_size = 1
-
-
 class Classifier(object):
 
     def __init__(self, model_config, num_labels, batch_size, num_train_steps=None, is_training=True):
