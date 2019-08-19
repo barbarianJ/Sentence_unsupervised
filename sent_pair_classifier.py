@@ -378,8 +378,7 @@ def main():
 
             config = tf.ConfigProto(allow_soft_placement=True, gpu_options=tf.GPUOptions(allow_growth=True))
             with tf.Session(graph=global_graph, config=config) as sess:
-                # model.restore_ckpt_global_step(init_checkpoint=init_checkpoint,include_global_step=False)
-                model.restore_model(sess)
+                model.restore_ckpt_global_step(init_checkpoint=init_checkpoint,include_global_step=False)
 
                 infer_data = processor.prepare_infer_data()
                 length = len(infer_data)
