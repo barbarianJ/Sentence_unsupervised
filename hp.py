@@ -7,13 +7,15 @@ infer = False
 # infer = True
 vocab_file = 'model/model_config/vocab.txt'
 do_lower_case = False
-true_file = 'data/handwritten_qingyun/han_qing_true.txt'
-false_file = 'data/handwritten_qingyun/han_qing_false.txt'
+# true_file = 'data/handwritten_qingyun/han_qing_true.txt'
+# false_file = 'data/handwritten_qingyun/han_qing_false.txt'
+true_file = 'data/handwritten/han_true.txt'
+false_file = 'data/handwritten/han_false.txt'
 
 infer_file = 'data/crawled/crawled.txt'
 infer_output_dir = 'infer/'
 
-init_checkpoint = 'result/ckpt-23351'
+init_checkpoint = 'result/ckpt-'
 init_checkpoint = None
 
 batch_size = 64
