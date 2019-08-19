@@ -12,6 +12,9 @@ from random import shuffle, sample
 from utils.misc_utils import get_assignment_map_from_checkpoint
 
 
+batch_size = 1
+
+
 class Classifier(object):
 
     def __init__(self, model_config, num_labels, batch_size, num_train_steps=None, is_training=True):
@@ -162,7 +165,7 @@ class DataProcessor(object):
                 line = line.strip()
                 if not (line.startswith('&& ') or line.endswith(' &&')):
                     self.train_data.append(line + ' && ' + '1')
-        shuffle(self.train_data)
+        # shuffle(self.train_data)
 
     def prepare_infer_data(self):
         with codecs.open(self.infer_file, 'r', encoding='utf-8') as f:
@@ -333,7 +336,7 @@ class DataProcessor(object):
             input_ids.append(ids)
             input_masks.append(masks)
             segment_ids.append(seg_ids)
-            label_ids.append([label])
+            label_ids.append([int(label)])
 
         return input_ids, input_masks, segment_ids, label_ids
 
@@ -342,7 +345,7 @@ class DataProcessor(object):
             self._text_to_ids_v2(text_a=sent1, max_seq_length=max_seq_length, text_b=sent2)
 
         label = [[0]]
-        return ids, masks, seg_ids, label
+        return [ids], [masks], [seg_ids], label
 
 
 def main():
