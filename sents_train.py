@@ -23,7 +23,7 @@ PARAM = {'lr': 0.0005,
 
 MODEL_DIR = './models'
 VOCAB = './data/vocab.txt'
-DATA = './data/sents.txt'
+DATA = './data/handwritten/sents.txt'
 TRAIN_STEP = 1000000
 BATCH_SIZE = 27 * 2
 SAVING_STEP = 10000
@@ -129,7 +129,7 @@ def compute_running_std():
     pass
 
 
-def create_batch(content, batch_size, index, tokenizer):
+def create_train_batch(content, batch_size, index, tokenizer):
     if index + batch_size > len(content):
         shuffle(content)
         index = 0
@@ -190,7 +190,7 @@ def train():
             index = 0
             for i in range(TRAIN_STEP):
 
-                feed_val = create_batch(content=content, batch_size=BATCH_SIZE, index=index, tokenizer=tokenizer)
+                feed_val = create_train_batch(content=content, batch_size=BATCH_SIZE, index=index, tokenizer=tokenizer)
                 index += BATCH_SIZE
 
                 _, ce_loss, l2_loss, global_step, lr, gn = model.train(sess, feed_val)
