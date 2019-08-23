@@ -1,6 +1,6 @@
 # encoding=utf-8
 
-from model.model import SentConfig, SentModel
+from bert_model.model import SentConfig, SentModel
 import os
 import codecs
 from tqdm import tqdm
@@ -67,12 +67,21 @@ class Classifier(object):
                                                                                 num_warmup_steps, use_tpu=False)
 
                 # saver
-                self.saver = tf.train.Saver(var_list=tf.trainable_variables() + [self.global_step],
-                                            max_to_keep=5)
-                tf.summary.scalar('loss', self.loss)
-                self.summary_op = tf.summary.merge_all()
-                self.summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'),
-                                                             tf.get_default_graph())
+                self._make_saver()
+                # self.saver = tf.train.Saver(var_list=tf.trainable_variables() + [self.global_step],
+                #                             max_to_keep=5)
+                # tf.summary.scalar('loss', self.loss)
+                # self.summary_op = tf.summary.merge_all()
+                # self.summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'),
+                #                                              tf.get_default_graph())
+
+    def _make_saver(self):
+        self.saver = tf.train.Saver(var_list=tf.trainable_variables() + [self.global_step],
+                                    max_to_keep=1)
+        tf.summary.scalar('loss', self.loss)
+        self.summary_op = tf.summary.merge_all()
+        self.summary_writter = tf.summary.FileWriter(os.path.join(output_dir, 'train_summary'),
+                                                     tf.get_default_graph())
 
     def train(self, sess, feed_values, summary=False, saver=False):
         sess.run(self.train_op, feed_dict=self.make_feed_dict(*feed_values))
@@ -83,14 +92,17 @@ class Classifier(object):
             self.summary_writter.add_summary(summary, self.global_step.eval(session=sess))
 
         if saver:
-            self.saver.save(sess, output_dir + '/ckpt', global_step=self.global_step)
+            self.saver.save(sess, output_dir + 'ckpt', global_step=self.global_step)
 
     def infer(self, sess, feed_values):
         return sess.run(self.probabilities, feed_dict=self.make_feed_dict(*feed_values))
 
     def restore_model(self, sess):
-        latest_ckpt = tf.train.latest_checkpoint(output_dir)
-        self.saver.restore(sess, latest_ckpt)
+        try:
+            latest_ckpt = tf.train.latest_checkpoint(output_dir)
+            self.saver.restore(sess, latest_ckpt)
+        except:
+            sess.run(tf.global_variables_initializer())
 
     def restore_ckpt_global_step(self, init_checkpoint=None, include_global_step=True):
         tf.global_variables_initializer().run()
@@ -382,14 +394,10 @@ def main():
 
                 infer_data = processor.prepare_infer_data()
                 length = len(infer_data)
-                match_found = False
 
                 tf.train.write_graph(sess.graph_def, 'result/', 'model_graph.pbtxt')
                 for sent1_idx in tqdm(range(infer_start_index, length)):
                     for sent2_idx in tqdm(sample(range(length), min(length, num_sent_to_compare))):
-                        if match_found:
-                            match_found = False
-                            break
 
                         if sent1_idx == sent2_idx or infer_data[sent1_idx] == infer_data[sent2_idx]:
                             continue
@@ -415,7 +423,7 @@ def main():
 
                                 writer.write(result_line)
 
-                            match_found = True
+                                break
 
 
 if __name__ == "__main__":
