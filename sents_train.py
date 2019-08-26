@@ -31,7 +31,7 @@ BATCH_SIZE = 27 * 2
 SAVING_STEP = 10000
 
 # ***************************************
-predict_index = 2859
+predict_index = 5000
 predict_file = './data/crawled/crawled.txt'
 predict_threshold = 0.998
 predict_pair_number = 100000
