@@ -23,13 +23,15 @@ PARAM = {'lr': 0.0005,
 
 MODEL_DIR = './models'
 VOCAB = './data/vocab.txt'
-DATA = './data/handwritten/sents.txt'
+
+# ***************************************
+TRAIN_DATA = './data/sents.txt'
 TRAIN_STEP = 1000000
 BATCH_SIZE = 27 * 2
 SAVING_STEP = 10000
 
 # ***************************************
-predict_index = 2105
+predict_index = 2859
 predict_file = './data/crawled/crawled.txt'
 predict_threshold = 0.998
 predict_pair_number = 100000
@@ -183,7 +185,7 @@ def train():
             g.rainbow('          |BEGIN GLOBAL STEP : %d|          ' % global_step)
 
             # [(sent1, sent2, label)]
-            content = read_content(DATA)
+            content = read_content(TRAIN_DATA)
             shuffle(content)
             tokenizer = tokenization.FullTokenizer(vocab_file=VOCAB)
 
@@ -257,6 +259,8 @@ def predict():
                     g.writef('prediction.txt', print_str.strip())
                 else:
                     g.writef('predict_false.txt', print_str + print_statistic)
+
+                del true_statistic, false_statistic
 
 
 if __name__ == '__main__':
