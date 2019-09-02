@@ -31,7 +31,7 @@ BATCH_SIZE = 27 * 2
 SAVING_STEP = 10000
 
 # ***************************************
-predict_index = 5000
+predict_index = 21500
 predict_file = './data/crawled/crawled.txt'
 predict_threshold = 0.998
 predict_pair_number = 100000
@@ -108,7 +108,7 @@ def compute_predict_static(true_prob, true_statistic,
                            idx2s):
     """
     true_prob, false_prob: 1D np array, ranges from 0.0 to 1.0,
-    NOT filter to be larger than 0.5
+    NOT filtered to be larger than 0.5
     """
     true_statistic.counter += len(true_prob[true_prob >= 0.5])
     false_statistic.counter += len(false_prob[false_prob > 0.5])
@@ -223,14 +223,15 @@ def predict():
             length = len(sents)
             tokenizer = tokenization.FullTokenizer(vocab_file=VOCAB)
 
-            for idx1 in tqdm(range(predict_index, length)):
+            num_to_sample = predict_pair_number // predict_batch_size
 
-                num_to_sample = predict_pair_number // predict_batch_size
+            for idx1 in range(predict_index, length):
+                print('idx1: ' + str(idx1))
 
                 true_statistic = Statistics()
                 false_statistic = Statistics()
 
-                for _ in tqdm(range(num_to_sample)):
+                for _ in range(num_to_sample):
                     idx2s = sample(range(length), predict_batch_size)
 
                     feed_val = create_predict_batch(sents, idx1, idx2s, tokenizer)
@@ -248,7 +249,7 @@ def predict():
                 print_str = sents[idx1] + ' && '
                 if true_statistic.sent2_id is not None:
                     print_str += sents[true_statistic.sent2_id]
-                print_str = '%-40s' % print_str
+                print_str = print_str.ljust(30, u'　')
                 print_statistic = 'num_true: %d, num_false: %d, max_prob: %.4f, true_mean_prob: %.4f, false_mean_prob: %.4f' \
                                   % (true_statistic.counter, false_statistic.counter, true_statistic.largest,
                                      true_statistic.prob_sum / float(true_statistic.counter),
@@ -259,8 +260,6 @@ def predict():
                     g.writef('prediction.txt', print_str.strip())
                 else:
                     g.writef('predict_false.txt', print_str + print_statistic)
-
-                del true_statistic, false_statistic
 
 
 if __name__ == '__main__':
